@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARM Instruction Encoding Decoder — COA Activity</title>
+<style>
+:root{--bg:#f6f8fa;--card:#fff;--tx:#17212b;--dim:#566676;--ln:#d5dde5;--cy:#0a7f8f;--ok:#1a8a3a;--bad:#c93c3c;--L:48%;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1116;--card:#131a22;--tx:#dbe6ef;--dim:#8396a8;--ln:#223040;--cy:#4fd1c5;--ok:#5ee87a;--bad:#ff6b6b;--L:62%}}
+:root[data-theme="dark"]{--bg:#0c1116;--card:#131a22;--tx:#dbe6ef;--dim:#8396a8;--ln:#223040;--cy:#4fd1c5;--ok:#5ee87a;--bad:#ff6b6b;--L:62%}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,'Segoe UI',Roboto,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 50px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:0 0 10px}
+.k{font:600 12px ui-monospace,Consolas,monospace;color:var(--cy);letter-spacing:.05em}
+.sub{color:var(--dim);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:18px;margin-bottom:18px}
+.kid{border-left:4px solid var(--cy);padding:6px 12px;margin:10px 0}
+button{font:inherit;cursor:pointer;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:6px;padding:7px 12px}
+button:hover{border-color:var(--cy)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+input{font:700 22px ui-monospace,Consolas,monospace;width:190px;padding:8px 12px;border:1px solid var(--ln);border-radius:6px;background:var(--bg);color:var(--tx);text-transform:uppercase}
+.strip{display:flex;overflow-x:auto;padding:6px 0 10px}
+.g{display:flex;flex-direction:column;align-items:center;margin:0 4px;flex:none}
+.gl{font-size:12px;font-weight:700;white-space:nowrap}.gi{font-size:11px;color:var(--dim)}
+.gb{display:flex;gap:2px}
+.b{width:24px;height:36px;padding:0;border-radius:3px;font:700 16px ui-monospace,Consolas,monospace;border:1px solid hsl(var(--h) 60% var(--L));background:hsl(var(--h) 70% 50%/.18)}
+.out{font:700 26px ui-monospace,Consolas,monospace;color:var(--cy);margin:8px 0 2px;word-break:break-word}
+.badge{display:inline-block;font:600 13px ui-monospace,Consolas,monospace;border:1px solid var(--cy);color:var(--cy);border-radius:4px;padding:2px 8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:top}
+th{color:var(--dim);font-size:12px;text-transform:uppercase}
+td.m{font-family:ui-monospace,Consolas,monospace}
+.err{color:var(--bad);font-weight:600}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.sum div{border:1px solid var(--ln);border-radius:6px;padding:10px 12px}
+.sum small{display:block;color:var(--dim);font:600 12px system-ui;text-transform:uppercase;margin-bottom:2px}
+.sum b{font-family:ui-monospace,Consolas,monospace;font-size:15px}
+.blk{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+.blk div{border:2px solid var(--cy);border-radius:6px;padding:8px 12px;font-size:14px;flex:1;min-width:150px}
+.blk i{align-self:center;font-style:normal;color:var(--cy);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="k">COMPUTER ORGANIZATION &amp; ARCHITECTURE · ACTIVITY 16</div>
+  <h1>Instruction Encoding Decoder (ARM, 32-bit)</h1>
+  <p class="sub">A machine instruction is just 32 bits. The decoder slices them into fields: condition, opcode, source registers, destination register and immediate.</p>
+
+  <div class="card">
+    <h2>Toddler version</h2>
+    <div class="kid">The computer reads a <b>strip of 32 little boxes</b>, each holding a 0 or a 1. Some boxes together mean <b>“what to do”</b> (add? move?). Some mean <b>“which toy boxes to use”</b> (registers). Some are <b>just a number</b>. The decoder is the helper who reads the strip and says, “Aha, this means R1 = R2 + R3!”</div>
+  </div>
+
+  <div class="card">
+    <h2>Input</h2>
+    <div class="row"><label for="hex"><b>Instruction (hex):</b></label><input id="hex" maxlength="8" spellcheck="false" autocomplete="off"><span id="msg" class="err"></span></div>
+    <div class="row" id="pre"></div>
+    <p style="color:var(--dim);font-size:14px;margin:10px 0 0">Type a hex value, pick a preset, or <b>click any bit</b> to flip it and watch the decoding change. Supported: data-processing, load/store (LDR/STR) and branch (B/BL).</p>
+  </div>
+
+  <div class="card">
+    <h2>Bit fields <span class="badge" id="fmt"></span></h2>
+    <div class="strip" id="strip"></div>
+    <div class="out" id="asm"></div>
+    <div id="rtl" style="color:var(--dim)"></div>
+  </div>
+
+  <div class="card">
+    <h2>Decoder output: the four things asked for</h2>
+    <div class="sum">
+      <div><small>Opcode</small><b id="sOp"></b></div>
+      <div><small>Source register(s)</small><b id="sSrc"></b></div>
+      <div><small>Destination register</small><b id="sDst"></b></div>
+      <div><small>Immediate / offset</small><b id="sImm"></b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Field-by-field decoding</h2>
+    <div style="overflow-x:auto"><table id="tbl"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Decoder design (block diagram)</h2>
+    <div class="blk">
+      <div><b>Instruction Register</b><br>32-bit machine word</div><i>→</i>
+      <div><b>Condition check</b><br>bits 31–28</div><i>→</i>
+      <div><b>Format selector</b><br>bits 27–25<br>00x = Data processing<br>01x = Load/Store<br>101 = Branch</div><i>→</i>
+      <div><b>Field extractor</b><br>shift + mask to slice bits for the chosen format</div><i>→</i>
+      <div><b>Outputs</b><br>Opcode · Source regs (Rn, Rm) · Destination (Rd) · Immediate</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How the decoder works</h2>
+    <ol style="margin:0;padding-left:20px">
+      <li>Read bits <b>27–26</b> (and 27–25) to find the <b>format</b>: <code>00</code> data processing, <code>01</code> load/store, <code>101</code> branch.</li>
+      <li>Read bits <b>31–28</b>: the <b>condition</b> (1110 = AL, always).</li>
+      <li>Slice the rest using that format’s layout: <b>opcode, Rn, Rd, operand 2 / offset</b>.</li>
+      <li>Rebuild the assembly text and the register-transfer meaning.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/*LOGIC*/
+var CONDS=['EQ','NE','CS','CC','MI','PL','VS','VC','HI','LS','GE','LT','GT','LE','AL','NV'];
+var OPS=['AND','EOR','SUB','RSB','ADD','ADC','SBC','RSC','TST','TEQ','CMP','CMN','ORR','MOV','BIC','MVN'];
+var SYM={AND:'&',EOR:'^',SUB:'−',ADD:'+',ORR:'|',TST:'&',TEQ:'^',CMP:'−',CMN:'+'};
+var SH=['LSL','LSR','ASR','ROR'];
+function bt(w,hi,lo){return (w>>>lo)&((1<<(hi-lo+1))-1);}
+function r(n){return n===13?'SP':n===14?'LR':n===15?'PC':'R'+n;}
+function shiftTxt(w){
+  var rm=r(bt(w,3,0)),ty=bt(w,6,5),f=bt(w,11,4);
+  if(f===0)return rm;
+  if(bt(w,4,4)===1)return rm+', '+SH[ty]+' '+r(bt(w,11,8));
+  var a=bt(w,11,7);
+  if(ty===3&&a===0)return rm+', RRX';
+  return rm+', '+SH[ty]+' #'+(a||(ty===1||ty===2?32:0));
+}
+function decode(w){
+  w=w>>>0;
+  var c=bt(w,31,28),cs=c===14?'':CONDS[c],F=[],asm,rtl,fmt;
+  var cf={n:'cond',hi:31,lo:28,v:c,m:CONDS[c]+(c===14?' (always execute)':' (execute only if '+CONDS[c]+' flags true)')};
+  var top=bt(w,27,26),I=bt(w,25,25);
+  if(bt(w,27,25)===5){
+    fmt='Branch';var L=bt(w,24,24),off=bt(w,23,0);if(off&0x800000)off-=0x1000000;
+    var d=8+off*4;
+    F=[cf,{n:'101',hi:27,lo:25,v:5,m:'format = branch'},{n:'L',hi:24,lo:24,v:L,m:L?'link: save return address in LR (BL)':'no link (B)'},
+       {n:'offset',hi:23,lo:0,v:off,m:'signed word offset = '+off+' → '+(off*4)+' bytes'}];
+    asm='B'+(L?'L':'')+cs+'  PC'+(d>=0?'+':'')+d;rtl=(L?'LR ← next instruction; ':'')+'PC ← address + 8 + 4×('+off+')';
+  }else if(top===1){
+    fmt='Load / Store';
+    var P=bt(w,24,24),U=bt(w,23,23),B=bt(w,22,22),W=bt(w,21,21),Ld=bt(w,20,20),rn=bt(w,19,16),rd=bt(w,15,12),o=bt(w,11,0);
+    F=[cf,{n:'01',hi:27,lo:26,v:1,m:'format = single data transfer'},
+      {n:'I',hi:25,lo:25,v:I,m:I?'offset is a (shifted) register':'offset is a 12-bit immediate'},
+      {n:'P',hi:24,lo:24,v:P,m:P?'pre-indexed (offset added before access)':'post-indexed (offset added after access)'},
+      {n:'U',hi:23,lo:23,v:U,m:U?'add offset':'subtract offset'},
+      {n:'B',hi:22,lo:22,v:B,m:B?'byte transfer':'word (32-bit) transfer'},
+      {n:'W',hi:21,lo:21,v:W,m:W?'write back address to Rn (!)':'no write-back'},
+      {n:'L',hi:20,lo:20,v:Ld,m:Ld?'Load (memory → register)':'Store (register → memory)'},
+      {n:'Rn',hi:19,lo:16,v:rn,m:'base register '+r(rn)},
+      {n:'Rd',hi:15,lo:12,v:rd,m:(Ld?'destination':'source')+' register '+r(rd)}];
+    var ot=I?(U?'':'-')+shiftTxt(w):'#'+(U?'':'-')+o,zero=!I&&o===0;
+    F.push({n:I?'shift+Rm':'offset',hi:11,lo:0,v:o,m:I?'register offset '+shiftTxt(w):'immediate offset = '+o});
+    var ad=P?'['+r(rn)+(zero?'':', '+ot)+']'+(W?'!':''):'['+r(rn)+']'+(zero?'':', '+ot);
+    asm=(Ld?'LDR':'STR')+cs+(B?'B':'')+'  '+r(rd)+', '+ad;
+    var ea=r(rn)+(zero?'':(U?' + ':' − ')+(I?shiftTxt(w):o));
+    rtl=Ld?r(rd)+' ← Memory['+ea+']':'Memory['+ea+'] ← '+r(rd);
+  }else if(top===0&&!(I===0&&bt(w,7,4)===9)&&!(bt(w,24,23)===2&&bt(w,20,20)===0)){
+    fmt='Data processing';
+    var op=bt(w,24,21),S=bt(w,20,20),rn2=bt(w,19,16),rd2=bt(w,15,12),nm=OPS[op],test=op>=8&&op<=11,mv=op===13||op===15,o2;
+    F=[cf,{n:'00',hi:27,lo:26,v:0,m:'format = data processing'},
+      {n:'I',hi:25,lo:25,v:I,m:I?'operand 2 is an immediate':'operand 2 is a register'},
+      {n:'opcode',hi:24,lo:21,v:op,m:nm},
+      {n:'S',hi:20,lo:20,v:S,m:S?'update condition flags':'do not update flags'},
+      {n:'Rn',hi:19,lo:16,v:rn2,m:mv?'first source (unused for '+nm+')':'first source register '+r(rn2)},
+      {n:'Rd',hi:15,lo:12,v:rd2,m:test?'unused (compare only sets flags)':'destination register '+r(rd2)}];
+    if(I){var rot=bt(w,11,8),i8=bt(w,7,0),rr=2*rot,val=rr?((i8>>>rr)|(i8<<(32-rr)))>>>0:i8;
+      F.push({n:'rotate',hi:11,lo:8,v:rot,m:'rotate right by 2×'+rot+' = '+rr},{n:'imm8',hi:7,lo:0,v:i8,m:'8-bit value '+i8+' → operand = '+val});
+      o2='#'+val;
+    }else{
+      F.push({n:'shift',hi:11,lo:4,v:bt(w,11,4),m:bt(w,11,4)?'shift applied to Rm':'no shift'},{n:'Rm',hi:3,lo:0,v:bt(w,3,0),m:'second source register '+r(bt(w,3,0))});
+      o2=shiftTxt(w);
+    }
+    asm=nm+cs+((S&&!test)?'S':'')+'  '+(test?r(rn2)+', '+o2:mv?r(rd2)+', '+o2:r(rd2)+', '+r(rn2)+', '+o2);
+    var ov=I?o2.slice(1):o2.replace(', ',' ');
+    rtl=test?'flags ← '+r(rn2)+' '+SYM[nm]+' '+ov:nm==='MOV'?r(rd2)+' ← '+ov:nm==='MVN'?r(rd2)+' ← NOT '+ov:
+      nm==='RSB'?r(rd2)+' ← '+ov+' − '+r(rn2):nm==='BIC'?r(rd2)+' ← '+r(rn2)+' AND NOT '+ov:
+      SYM[nm]?r(rd2)+' ← '+r(rn2)+' '+SYM[nm]+' '+ov:r(rd2)+' ← '+nm+'('+r(rn2)+', '+ov+', carry)';
+  }else{
+    fmt='Not supported';F=[cf,{n:'bits 27–0',hi:27,lo:0,v:bt(w,27,0),m:'outside this demo (multiply, halfword, coprocessor, etc.)'}];
+    asm='(not decoded)';rtl='';
+  }
+  return{fmt:fmt,fields:F,asm:asm,rtl:rtl};
+}
+/*END*/
+
+var w=0xE0821003,hex=document.getElementById('hex'),strip=document.getElementById('strip');
+var PRE=[['ADD R1,R2,R3','E0821003'],['MOV R0,#5','E3A00005'],['SUB R4,R5,#1','E2454001'],['CMP R1,#0','E3510000'],['LDR R1,[R2,#4]','E5921004'],['STR R3,[R0,#8]','E5803008'],['BL (offset 2)','EB000002']];
+function hx(n){return ('0000000'+(n>>>0).toString(16).toUpperCase()).slice(-8);}
+function bin(v,n){return ('0000000000000000000000000000000'+v.toString(2)).slice(-n);}
+function summ(d){
+  var g=function(n){for(var i=0;i<d.fields.length;i++)if(d.fields[i].n===n)return d.fields[i];},o={op:'—',src:'—',dst:'—',imm:'None'},rn=g('Rn'),rd=g('Rd'),L=g('L'),s=[];
+  if(d.fmt==='Data processing'){
+    var op=g('opcode'),t=op.v>=8&&op.v<=11,mv=op.v===13||op.v===15;
+    o.op=op.m+' (bits 24–21 = '+bin(op.v,4)+')';
+    if(!mv)s.push('Rn = '+r(rn.v));
+    if(g('Rm'))s.push('Rm = '+r(g('Rm').v));
+    o.src=s.join(', ')||'None (immediate only)';
+    o.dst=t?'None (only flags change)':'Rd = '+r(rd.v);
+    o.imm=g('imm8')?g('imm8').m:'None (operand 2 is a register)';
+  }else if(d.fmt==='Load / Store'){
+    o.op=(L.v?'LDR':'STR')+' (L bit = '+L.v+')';
+    s.push('Rn = '+r(rn.v)+' (base)');
+    if(!L.v)s.push('Rd = '+r(rd.v)+' (data to store)');
+    if(g('shift+Rm'))s.push('offset register');
+    o.src=s.join(', ');
+    o.dst=L.v?'Rd = '+r(rd.v):'Memory';
+    o.imm=g('offset')?g('offset').m:'None (register offset)';
+  }else if(d.fmt==='Branch'){
+    o.op=(L.v?'BL':'B')+' (bits 27–25 = 101)';o.src='PC (current address)';o.dst='PC';o.imm=g('offset').m;
+  }
+  return o;
+}
+function render(fromInput){
+  var d=decode(w);
+  if(!fromInput)hex.value=hx(w);
+  document.getElementById('msg').textContent='';
+  document.getElementById('fmt').textContent=d.fmt;
+  document.getElementById('asm').textContent=d.asm;
+  document.getElementById('rtl').textContent=d.rtl?'Meaning: '+d.rtl:'';
+  var s='',t='<tr><th>Field</th><th>Bits</th><th>Binary</th><th>Value</th><th>Meaning</th></tr>';
+  d.fields.forEach(function(f,i){
+    var n=f.hi-f.lo+1,h=(i*47+200)%360;
+    s+='<div class="g" style="--h:'+h+'"><div class="gl">'+f.n+'</div><div class="gb">';
+    for(var k=f.hi;k>=f.lo;k--)s+='<button class="b" data-b="'+k+'" aria-label="bit '+k+'">'+((w>>>k)&1)+'</button>';
+    s+='</div><div class="gi">'+(n>1?f.hi+'–'+f.lo:f.hi)+'</div></div>';
+    t+='<tr><td style="border-left:5px solid hsl('+h+' 65% 50%)"><b>'+f.n+'</b></td><td>'+(n>1?f.hi+'–'+f.lo:f.hi)+'</td><td class="m">'+bin(f.v&((n>=31)?0x7fffffff:((1<<n)-1)),Math.min(n,28))+'</td><td class="m">'+f.v+'</td><td>'+f.m+'</td></tr>';
+  });
+  strip.innerHTML=s;document.getElementById('tbl').innerHTML=t;
+  var u=summ(d);
+  document.getElementById('sOp').textContent=u.op;document.getElementById('sSrc').textContent=u.src;
+  document.getElementById('sDst').textContent=u.dst;document.getElementById('sImm').textContent=u.imm;
+  Array.prototype.forEach.call(strip.querySelectorAll('.b'),function(b){
+    b.onclick=function(){w=(w^(1<<(+b.dataset.b)))>>>0;render();};
+  });
+}
+hex.addEventListener('input',function(){
+  var v=hex.value.trim();
+  if(/^[0-9a-fA-F]{1,8}$/.test(v)){w=parseInt(v,16)>>>0;render(true);}
+  else document.getElementById('msg').textContent='Enter 1–8 hex digits (0–9, A–F)';
+});
+PRE.forEach(function(p){
+  var b=document.createElement('button');b.textContent=p[0];
+  b.onclick=function(){w=parseInt(p[1],16)>>>0;render();};
+  document.getElementById('pre').appendChild(b);
+});
+render();
+})();
+</script>
+</body>
+</html>
